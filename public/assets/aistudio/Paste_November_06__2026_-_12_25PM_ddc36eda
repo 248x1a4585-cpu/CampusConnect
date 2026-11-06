@@ -1,0 +1,1043 @@
+// ==========================================
+// FILE: pubspec.yaml
+// ==========================================
+
+name: campus_connect
+description: "CampusConnect - Advanced College Management & Student Communication App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State Management (IITM Pravartak Mandatory Requirement)
+  provider: ^6.1.2
+  # Local Persistent Storage
+  shared_preferences: ^2.3.2
+  # UI & Material Design 3
+  google_fonts: ^6.2.1
+  intl: ^0.19.0
+  # Networking & HTTP
+  http: ^1.2.1
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+
+
+
+// ==========================================
+// FILE: lib/main.dart
+// ==========================================
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'theme/app_theme.dart';
+import 'providers/notice_provider.dart';
+import 'providers/event_provider.dart';
+import 'providers/material_provider.dart';
+import 'providers/student_provider.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/notice_list_screen.dart';
+import 'screens/add_notice_screen.dart';
+import 'screens/events_screen.dart';
+import 'screens/materials_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/student_management_screen.dart';
+import 'screens/campus_venues_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const CampusConnectApp());
+}
+
+class CampusConnectApp extends StatelessWidget {
+  const CampusConnectApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // MultiProvider architecture for global reactive state
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NoticeProvider()..init()),
+        ChangeNotifierProvider(create: (_) => EventProvider()..init()),
+        ChangeNotifierProvider(create: (_) => MaterialProvider()..init()),
+        ChangeNotifierProvider(create: (_) => StudentProvider()..init()),
+      ],
+      child: Consumer<StudentProvider>(
+        builder: (context, studentProvider, child) {
+          return MaterialApp(
+            title: 'CampusConnect',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: studentProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            home: const MainNavigationShell(),
+            routes: {
+              '/dashboard': (context) => const DashboardScreen(),
+              '/notices': (context) => const NoticeListScreen(),
+              '/add-notice': (context) => const AddNoticeScreen(),
+              '/events': (context) => const EventsScreen(),
+              '/materials': (context) => const MaterialsScreen(),
+              '/profile': (context) => const ProfileScreen(),
+              '/venues': (context) => const CampusVenuesScreen(),
+              '/student-management': (context) => const StudentManagementScreen(),
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class MainNavigationShell extends StatefulWidget {
+  const MainNavigationShell({super.key});
+
+  @override
+  State<MainNavigationShell> createState() => _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends State<MainNavigationShell> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final studentProvider = Provider.of<StudentProvider>(context);
+    final isFaculty = studentProvider.currentUserRole == 'faculty';
+
+    final screens = isFaculty
+        ? const [
+            DashboardScreen(),
+            NoticeListScreen(),
+            StudentManagementScreen(),
+            CampusVenuesScreen(),
+            ProfileScreen(),
+          ]
+        : const [
+            DashboardScreen(),
+            NoticeListScreen(),
+            EventsScreen(),
+            CampusVenuesScreen(),
+            ProfileScreen(),
+          ];
+
+    final destinations = isFaculty
+        ? const [
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.notifications_none), selectedIcon: Icon(Icons.notifications), label: 'Notices'),
+            NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Students'),
+            NavigationDestination(icon: Icon(Icons.apartment_outlined), selectedIcon: Icon(Icons.apartment), label: 'Rooms & Labs'),
+            NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Faculty'),
+          ]
+        : const [
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.notifications_none), selectedIcon: Icon(Icons.notifications), label: 'Notices'),
+            NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: 'Events'),
+            NavigationDestination(icon: Icon(Icons.apartment_outlined), selectedIcon: Icon(Icons.apartment), label: 'Rooms & Labs'),
+            NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+          ];
+
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: destinations,
+      ),
+    );
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/models/student_model.dart
+// ==========================================
+
+class StudentModel {
+  String id;
+  String rollNo;
+  String name;
+  String email;
+  String phone;
+  String department;
+  String year;
+  String semester;
+  String section;
+  String cgpa;
+  double attendancePercent;
+  String classroomNumber;
+  String floor;
+  String location;
+  String allottedLab;
+  String labFloor;
+  String mentorFaculty;
+  String parentName;
+  String emergencyContact;
+  bool feeClearance;
+
+  StudentModel({
+    required this.id,
+    required this.rollNo,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.department,
+    required this.year,
+    required this.semester,
+    required this.section,
+    required this.cgpa,
+    required this.attendancePercent,
+    required this.classroomNumber,
+    required this.floor,
+    required this.location,
+    required this.allottedLab,
+    required this.labFloor,
+    required this.mentorFaculty,
+    required this.parentName,
+    required this.emergencyContact,
+    this.feeClearance = true,
+  });
+
+  factory StudentModel.fromJson(Map<String, dynamic> json) {
+    return StudentModel(
+      id: json['id'] as String,
+      rollNo: json['rollNo'] as String,
+      name: json['name'] as String,
+      email: json['email'] as String,
+      phone: json['phone'] as String,
+      department: json['department'] as String,
+      year: json['year'] as String,
+      semester: json['semester'] as String,
+      section: json['section'] as String,
+      cgpa: json['cgpa'] as String,
+      attendancePercent: (json['attendancePercent'] as num).toDouble(),
+      classroomNumber: json['classroomNumber'] as String? ?? 'Room 304',
+      floor: json['floor'] as String? ?? '3rd Floor',
+      location: json['location'] as String? ?? 'Sir M. Visvesvaraya Block',
+      allottedLab: json['allottedLab'] as String? ?? 'Lab 4: Mobile Computing Lab',
+      labFloor: json['labFloor'] as String? ?? 'Ground Floor',
+      mentorFaculty: json['mentorFaculty'] as String? ?? 'Prof. K. Rama Krishna',
+      parentName: json['parentName'] as String? ?? 'Parent',
+      emergencyContact: json['emergencyContact'] as String? ?? '+91 94401 55672',
+      feeClearance: json['feeClearance'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'rollNo': rollNo,
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'department': department,
+      'year': year,
+      'semester': semester,
+      'section': section,
+      'cgpa': cgpa,
+      'attendancePercent': attendancePercent,
+      'classroomNumber': classroomNumber,
+      'floor': floor,
+      'location': location,
+      'allottedLab': allottedLab,
+      'labFloor': labFloor,
+      'mentorFaculty': mentorFaculty,
+      'parentName': parentName,
+      'emergencyContact': emergencyContact,
+      'feeClearance': feeClearance,
+    };
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/models/campus_venue.dart
+// ==========================================
+
+class CampusVenue {
+  final String id;
+  final String name;
+  final String type; // lab, classroom, seminar_hall, library
+  final String roomNumber;
+  final String floor;
+  final String blockLocation;
+  final String department;
+  final int capacity;
+  final String equipmentOrIncharge;
+  final bool isOccupiedNow;
+
+  CampusVenue({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.roomNumber,
+    required this.floor,
+    required this.blockLocation,
+    required this.department,
+    required this.capacity,
+    required this.equipmentOrIncharge,
+    this.isOccupiedNow = false,
+  });
+
+  factory CampusVenue.fromJson(Map<String, dynamic> json) {
+    return CampusVenue(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      type: json['type'] as String,
+      roomNumber: json['roomNumber'] as String,
+      floor: json['floor'] as String,
+      blockLocation: json['blockLocation'] as String,
+      department: json['department'] as String,
+      capacity: json['capacity'] as int,
+      equipmentOrIncharge: json['equipmentOrIncharge'] as String,
+      isOccupiedNow: json['isOccupiedNow'] as bool? ?? false,
+    );
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/screens/student_management_screen.dart
+// ==========================================
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/student_model.dart';
+import '../providers/student_provider.dart';
+
+class StudentManagementScreen extends StatefulWidget {
+  const StudentManagementScreen({super.key});
+
+  @override
+  State<StudentManagementScreen> createState() => _StudentManagementScreenState();
+}
+
+class _StudentManagementScreenState extends State<StudentManagementScreen> {
+  final _searchController = TextEditingController();
+
+  void _openEditDialog(BuildContext context, StudentModel student) {
+    final nameCtrl = TextEditingController(text: student.name);
+    final rollCtrl = TextEditingController(text: student.rollNo);
+    final roomCtrl = TextEditingController(text: student.classroomNumber);
+    final floorCtrl = TextEditingController(text: student.floor);
+    final locCtrl = TextEditingController(text: student.location);
+    final labCtrl = TextEditingController(text: student.allottedLab);
+    final labFloorCtrl = TextEditingController(text: student.labFloor);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Student & Venue Allocation'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Student Name *'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: rollCtrl,
+                    decoration: const InputDecoration(labelText: 'Roll Number *'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: roomCtrl,
+                    decoration: const InputDecoration(labelText: 'Class Room Number *'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: floorCtrl,
+                    decoration: const InputDecoration(labelText: 'Class Floor Level *'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: locCtrl,
+                    decoration: const InputDecoration(labelText: 'Building Block Location *'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: labCtrl,
+                    decoration: const InputDecoration(labelText: 'Allotted Practical Lab *'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: labFloorCtrl,
+                    decoration: const InputDecoration(labelText: 'Lab Floor & Wing *'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  student.name = nameCtrl.text.trim();
+                  student.rollNo = rollCtrl.text.trim();
+                  student.classroomNumber = roomCtrl.text.trim();
+                  student.floor = floorCtrl.text.trim();
+                  student.location = locCtrl.text.trim();
+                  student.allottedLab = labCtrl.text.trim();
+                  student.labFloor = labFloorCtrl.text.trim();
+
+                  Provider.of<StudentProvider>(context, listen: false).updateStudent(student);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Student details & venue allocation updated successfully!')),
+                  );
+                }
+              },
+              child: const Text('Save Records'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final studentProvider = Provider.of<StudentProvider>(context);
+    final students = studentProvider.allStudents;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Student Directory & Edit'),
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: students.length,
+        itemBuilder: (context, index) {
+          final std = students[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.between,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(std.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('Roll No: ${std.rollNo}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _openEditDialog(context, std),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      const Icon(Icons.meeting_room, size: 16, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text('Classroom: ${std.classroomNumber} (${std.floor})'),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.science, size: 16, color: Colors.indigo),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text('Lab: ${std.allottedLab} (${std.labFloor})')),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Colors.red),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text('Location: ${std.location}', style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/theme/app_theme.dart
+// ==========================================
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class AppTheme {
+  // KHIT Collegiate Blue Seed Color
+  static const Color primarySeed = Color(0xFF1A56DB);
+
+  static ThemeData get lightTheme {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primarySeed,
+      brightness: Brightness.light,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(),
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF0F172A),
+        ),
+      ),
+      cardTheme: CardTheme(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        color: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+      ),
+    );
+  }
+
+  static ThemeData get darkTheme {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primarySeed,
+      brightness: Brightness.dark,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: const Color(0xFF0F172A),
+      textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme),
+      appBarTheme: const AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        backgroundColor: Color(0xFF1E293B),
+        foregroundColor: Color(0xFFF8FAFC),
+      ),
+      cardTheme: CardTheme(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF334155)),
+        ),
+        color: const Color(0xFF1E293B),
+      ),
+    );
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/models/notice_model.dart
+// ==========================================
+
+class NoticeModel {
+  final String id;
+  final String title;
+  final String department;
+  final String priority; // Urgent, Academic, Placement, General
+  final String date;
+  final String author;
+  final String authorRole;
+  final String content;
+  final String? attachmentName;
+  final String? attachmentSize;
+  int views;
+  bool isBookmarked;
+
+  NoticeModel({
+    required this.id,
+    required this.title,
+    required this.department,
+    required this.priority,
+    required this.date,
+    required this.author,
+    required this.authorRole,
+    required this.content,
+    this.attachmentName,
+    this.attachmentSize,
+    this.views = 0,
+    this.isBookmarked = false,
+  });
+
+  factory NoticeModel.fromJson(Map<String, dynamic> json) {
+    return NoticeModel(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      department: json['department'] as String,
+      priority: json['priority'] as String,
+      date: json['date'] as String,
+      author: json['author'] as String,
+      authorRole: json['authorRole'] as String,
+      content: json['content'] as String,
+      attachmentName: json['attachmentName'] as String?,
+      attachmentSize: json['attachmentSize'] as String?,
+      views: json['views'] as int? ?? 0,
+      isBookmarked: json['isBookmarked'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'department': department,
+      'priority': priority,
+      'date': date,
+      'author': author,
+      'authorRole': authorRole,
+      'content': content,
+      'attachmentName': attachmentName,
+      'attachmentSize': attachmentSize,
+      'views': views,
+      'isBookmarked': isBookmarked,
+    };
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/providers/notice_provider.dart
+// ==========================================
+
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/notice_model.dart';
+
+class NoticeProvider with ChangeNotifier {
+  List<NoticeModel> _notices = [];
+  String _selectedDepartment = 'All';
+  String _searchQuery = '';
+  bool _isLoading = false;
+
+  List<NoticeModel> get notices {
+    return _notices.where((n) {
+      final matchesDept = _selectedDepartment == 'All' || n.department == _selectedDepartment;
+      final matchesQuery = _searchQuery.isEmpty ||
+          n.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          n.content.toLowerCase().contains(_searchQuery.toLowerCase());
+      return matchesDept && matchesQuery;
+    }).toList();
+  }
+
+  String get selectedDepartment => _selectedDepartment;
+  String get searchQuery => _searchQuery;
+  bool get isLoading => _isLoading;
+
+  Future<void> init() async {
+    _isLoading = true;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedData = prefs.getString('saved_notices');
+
+    if (savedData != null) {
+      final List decoded = jsonDecode(savedData);
+      _notices = decoded.map((item) => NoticeModel.fromJson(item)).toList();
+    } else {
+      _loadDefaultNotices();
+      await _persist();
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void setDepartment(String dept) {
+    _selectedDepartment = dept;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  Future<void> addNotice(NoticeModel notice) async {
+    _notices.insert(0, notice);
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> toggleBookmark(String id) async {
+    final index = _notices.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notices[index].isBookmarked = !_notices[index].isBookmarked;
+      notifyListeners();
+      await _persist();
+    }
+  }
+
+  Future<void> incrementViews(String id) async {
+    final index = _notices.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notices[index].views += 1;
+      notifyListeners();
+      await _persist();
+    }
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(_notices.map((n) => n.toJson()).toList());
+    await prefs.setString('saved_notices', encoded);
+  }
+
+  void _loadDefaultNotices() {
+    _notices = [
+      NoticeModel(
+        id: 'not-01',
+        title: 'B.Tech III Year II Sem Regular Examinations Schedule (Nov 2026)',
+        department: 'Exam Cell',
+        priority: 'Urgent',
+        date: 'Today, 09:30 AM',
+        author: 'Dr. M. Venkata Ramana',
+        authorRole: 'Controller of Examinations',
+        content: 'Semester End Examinations for B.Tech III-II commence from Nov 24, 2026. Clear departmental dues to obtain hall tickets.',
+        attachmentName: 'Exam_Schedule_Nov2026.pdf',
+        attachmentSize: '1.4 MB',
+        views: 342,
+      ),
+      NoticeModel(
+        id: 'not-02',
+        title: 'TCS & Infosys Campus Recruitment Drive: Technical Shortlist',
+        department: 'Placement Cell',
+        priority: 'Placement',
+        date: 'Yesterday, 04:15 PM',
+        author: 'Prof. K. Suresh Babu',
+        authorRole: 'Head - Training & Placements',
+        content: 'Shortlisted candidates must report to Central Seminar Hall on Monday with 3 copies of updated resume.',
+        attachmentName: 'Shortlist_Candidates.xlsx',
+        attachmentSize: '480 KB',
+        views: 890,
+      ),
+    ];
+  }
+}
+
+
+
+// ==========================================
+// FILE: lib/screens/add_notice_screen.dart
+// ==========================================
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/notice_model.dart';
+import '../providers/notice_provider.dart';
+
+class AddNoticeScreen extends StatefulWidget {
+  const AddNoticeScreen({super.key});
+
+  @override
+  State<AddNoticeScreen> createState() => _AddNoticeScreenState();
+}
+
+class _AddNoticeScreenState extends State<AddNoticeScreen> {
+  // Global form key for complete validation (Mandatory Requirement)
+  final _formKey = GlobalKey<FormState>();
+
+  final _titleController = TextEditingController();
+  final _authorController = TextEditingController(text: 'Prof. Dr. P. Siva Prasad');
+  final _roleController = TextEditingController(text: 'HOD - Computer Science');
+  final _contentController = TextEditingController();
+
+  String _department = 'Computer Science (CSE)';
+  String _priority = 'Academic';
+  bool _attachFile = true;
+
+  final List<String> _departments = [
+    'Computer Science (CSE)',
+    'Electronics & Comm (ECE)',
+    'Exam Cell',
+    'Placement Cell',
+    'Administration',
+  ];
+
+  final List<String> _priorities = ['General', 'Urgent', 'Academic', 'Placement'];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _authorController.dispose();
+    _roleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      final newNotice = NoticeModel(
+        id: 'not-${DateTime.now().millisecondsSinceEpoch}',
+        title: _titleController.text.trim(),
+        department: _department,
+        priority: _priority,
+        date: 'Just now',
+        author: _authorController.text.trim(),
+        authorRole: _roleController.text.trim(),
+        content: _contentController.text.trim(),
+        attachmentName: _attachFile ? 'Official_Guidelines.pdf' : null,
+        attachmentSize: _attachFile ? '1.2 MB' : null,
+      );
+
+      Provider.of<NoticeProvider>(context, listen: false).addNotice(newNotice);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notice successfully posted to $_department board!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Post Official Notice'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Notice Title *',
+                  hintText: 'e.g. Schedule for Mid-Term Lab Examinations',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Notice title is mandatory';
+                  }
+                  if (value.trim().length < 8) {
+                    return 'Title must be at least 8 characters long';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _department,
+                      decoration: const InputDecoration(labelText: 'Department'),
+                      items: _departments.map((dept) {
+                        return DropdownMenuItem(value: dept, child: Text(dept, overflow: TextOverflow.ellipsis));
+                      }).toList(),
+                      onChanged: (val) => setState(() => _department = val!),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _priority,
+                      decoration: const InputDecoration(labelText: 'Priority'),
+                      items: _priorities.map((p) {
+                        return DropdownMenuItem(value: p, child: Text(p));
+                      }).toList(),
+                      onChanged: (val) => setState(() => _priority = val!),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _authorController,
+                      decoration: const InputDecoration(labelText: 'Author / Faculty *'),
+                      validator: (val) => (val == null || val.trim().length < 3) ? 'Author name required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _roleController,
+                      decoration: const InputDecoration(labelText: 'Role / Designation *'),
+                      validator: (val) => (val == null || val.trim().isEmpty) ? 'Role required' : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _contentController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Notice Announcement Body *',
+                  hintText: 'Provide detailed instructions, venue, and deadline for students...',
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().length < 25) {
+                    return 'Notice content must be at least 25 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                value: _attachFile,
+                onChanged: (val) => setState(() => _attachFile = val ?? true),
+                title: const Text('Attach Verified PDF Document'),
+                subtitle: const Text('Includes download link on notice details screen'),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _submitForm,
+                icon: const Icon(Icons.send),
+                label: const Text('Publish Notice to Campus'),
+                style: FilledButton.styleFrom(padding: const EdgeInsets.all(16)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+// ==========================================
+// FILE: test/widget_test.dart
+// ==========================================
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:campus_connect/main.dart';
+
+void main() {
+  testWidgets('CampusConnect boots successfully and displays navigation tabs', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const CampusConnectApp());
+    await tester.pumpAndSettle();
+
+    // Verify presence of CampusConnect title / header
+    expect(find.text('CampusConnect'), findsWidgets);
+
+    // Verify Material 3 Navigation Bar destinations
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Notices'), findsOneWidget);
+
+    // Tap the 'Notices' tab and verify notice list renders
+    await tester.tap(find.text('Notices'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.search), findsWidgets);
+  });
+}
+
+
+
+// ==========================================
+// FILE: README.md
+// ==========================================
+
+# CampusConnect – Advanced College Management & Student Communication App
+
+**Institution:** Kallam Haranadhareddy Institute of Technology (KHIT), Guntur
+**Affiliation:** Autonomous institution affiliated to JNTUK
+**Program:** IITM Pravartak Technologies Flutter Group Project Specification
+
+### Flutter Group Project Team Members:
+1. **KOPPARTHI ANJI REDDY** – Roll No: `248X1A4575` (Team Lead, Architecture, Multi-Role Auth & Provider State)
+2. **MADDIKARA SRIHARINADH REDDY** – Roll No: `248X1A4583` (UI/UX Design, Notice Board, Events Management, Digital ID)
+3. **MADDU KARUNYA** – Roll No: `248X1A4585` (Study Materials, Venue Allocations, Form Validations, Testing & Defect Log)
+
+---
+
+## 1. Project Overview
+CampusConnect is a centralized, production-grade mobile platform developed in Flutter 3.35 and Dart with null safety. It integrates college notices, upcoming events, academic study resources, role-based login (Student, Faculty, Parent), and campus infrastructure management (Labs, Classrooms, Floors, and Block Locations).
+
+## 2. Multi-Role Authentication & Access Control
+- **Student Role:** Access to academic schedule, assigned classroom (Room 304), practical lab (Lab 4), attendance (86.4%), events, and digital ID card.
+- **Faculty / Admin Role:** Full permissions to EDIT student details, roll numbers, classroom numbers, labs, floors, and publish notices.
+- **Parent Role:** Monitoring portal for student attendance, semester CGPA, fee clearance status, exam schedules, and teacher remarks.
+
+## 3. Campus Infrastructure Directory
+- **Classroom Numbers & Floors:** Room 304 (3rd Floor), Room 306 (3rd Floor) in Sir M. Visvesvaraya Engineering Block.
+- **Laboratories:** Lab 4 (Mobile Computing & Flutter Lab, Ground Floor), Lab 2 (DSA Lab, 1st Floor), Lab 6 (IoT Lab, 2nd Floor).
+
+---
+
+## 4. How to Build Release APK
+Run the following commands on Windows 11 terminal:
+```bash
+flutter clean
+flutter pub get
+flutter test
+flutter build apk --release --split-per-abi
+```
+Output path: `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+
+

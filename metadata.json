@@ -1,0 +1,8 @@
+{
+  "name": "Remix CampusConnect - KHIT College Management",
+  "description": "Advanced College Management \u0026 Student Communication App for Kallam Haranadhareddy Institute of Technology (KHIT), Guntur with multi-role access, notice board, events, study resources, and venue allocation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
